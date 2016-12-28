@@ -8,7 +8,9 @@ require('dotenv').config({silent: true});
 
 var chalk = require('chalk');
 var webpack = require('webpack');
-var WebpackDevServer = require('webpack-dev-server');
+var express = require('express');
+var devMiddleware = require('webpack-dev-middleware');
+var hotMiddleware = require('webpack-hot-middleware');
 var historyApiFallback = require('connect-history-api-fallback');
 var httpProxyMiddleware = require('http-proxy-middleware');
 var detect = require('detect-port');
@@ -25,6 +27,8 @@ var paths = require('../config/paths');
 var useYarn = fs.existsSync(paths.yarnLockFile);
 var cli = useYarn ? 'yarn' : 'npm';
 var isInteractive = process.stdout.isTTY;
+
+var app = express();
 
 // Warn and crash if required files are missing
 if (!checkRequiredFiles([paths.appHtml, paths.appIndexJs])) {
@@ -217,7 +221,7 @@ function addMiddleware(devServer) {
 }
 
 function runDevServer(host, port, protocol) {
-  var devServer = new WebpackDevServer(compiler, {
+  var devServer = devMiddleware(compiler, {
     // Enable gzip compression of generated files.
     compress: true,
     // Silence WebpackDevServer's own logs since they're generally not useful.
@@ -261,10 +265,13 @@ function runDevServer(host, port, protocol) {
   });
 
   // Our custom middleware proxies requests to /index.html or a remote API.
-  addMiddleware(devServer);
+  // addMiddleware(app);
+
+  app.use(devServer);
+  app.use(hotMiddleware(compiler));
 
   // Launch WebpackDevServer.
-  devServer.listen(port, (err, result) => {
+  app.listen(port, (err, result) => {
     if (err) {
       return console.log(err);
     }
